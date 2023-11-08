@@ -163,12 +163,18 @@ function list_of_unassigned(symbols) {
 whether the operands in the binary operator combinations
 refers to function parameter, other names or just a literal
 value. 
+If the operand is a literal value just take that value
+using literal_value function.
+If the operand is a parameter give it a marker value for
+future processing.
+If the operand is another name declared in the command, 
+use look_up_symbol_value function to get the value.
 */
-function check_operand(opd, E){
+function check_operand(opd, op, E){
     return is_literal(opd)
     ? literal_value(opd)
     : symbol_of_name(opd) === head(function_parameters(op))
-    ? "Parameter"
+    ? () => "Operand is Parameter"
     : lookup_symbol_value(symbol_of_name(opd), E);
 }
 
@@ -180,6 +186,9 @@ function apply_unary(operator, op) {
            : error(operator, "Unknown operator");
 }
 
+/*Modify the original apply_binary function such that now
+it takes in a new argument which is the current environment
+of the CSE Machine*/
 function apply_binary(operator, op1, op2, E) {
     if(operator === "+"){
         return op1 + op2;
@@ -204,11 +213,14 @@ function apply_binary(operator, op1, op2, E) {
     function parse tree. Then, extract the relevant information
     such as operator, 1st operand & 2nd operand for the calculation
     of each of the element in the result list.
-    For each operand, if it is a name just replace it with the
-    value of the current element in op2, if it is just a literal
-    value use literal_value function to get its value.
+    For each operand, determine the value using the check_operand
+    function decalared above. 
     Lastly, using map function to map the apply_binary function
     with all the information gotten above to get the result list.
+    If the operand carries the marker value after evaluation of 
+    check_operand, replace the marker value with individual 
+    element of the list op2 during the evaluation of the map 
+    function.
     For unary simple function and primitive functions they will be
     handled in similar manner to deliver the same results.
     */
@@ -219,11 +231,11 @@ function apply_binary(operator, op1, op2, E) {
             if(is_binary_operator_combination(function_body(op1))){
                 const opd1 = first_operand(operation);
                 const opd2 = second_operand(operation);
-                const value1 = check_operand(opd1);
-                const value2 = check_operand(opd2);
+                const value1 = check_operand(opd1, op1, E);
+                const value2 = check_operand(opd2, op1, E);
                 return map(x => apply_binary(opr, 
-                            value1 === "Parameter" ? x : value1,
-                            value2 === "Parameter" ? x : value2,
+                            is_function(value1) ? x : value1,
+                            is_function(value2) ? x : value2,
                             E),
                         op2);
             }else{
@@ -739,4 +751,3 @@ function multiply_by_ten(x) {
     return x * y;
 }
 multiply_by_ten > list(1, 2, 3);`);
-// returns list(10, 20, 30)
